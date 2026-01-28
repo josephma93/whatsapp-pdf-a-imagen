@@ -42,21 +42,8 @@
     </label>
 
     <label>
-      Tamaño final cuadrado
-      <select id="outputSize">
-        <option value="1200" selected>1200 × 1200</option>
-        <option value="1080">1080 × 1080</option>
-        <option value="900">900 × 900</option>
-      </select>
-    </label>
-
-    <label>
       Calidad de render
-      <select id="renderScale">
-        <option value="1.5">Media</option>
-        <option value="2.0" selected>Alta</option>
-        <option value="2.5">Muy alta</option>
-      </select>
+      <input type="text" value="Muy alta (fijo)" readonly />
     </label>
 
     <button id="generateBtn" disabled>Generar PNG</button>
@@ -88,8 +75,6 @@
 
     const pdfFile = document.getElementById("pdfFile");
     const pageNumberEl = document.getElementById("pageNumber");
-    const outputSizeEl = document.getElementById("outputSize");
-    const renderScaleEl = document.getElementById("renderScale");
     const generateBtn = document.getElementById("generateBtn");
 
     const pdfCanvas = document.getElementById("pdfCanvas");
@@ -99,11 +84,6 @@
     const outMeta = document.getElementById("outMeta");
     const downloadLink = document.getElementById("downloadLink");
     const shareBtn = document.getElementById("shareBtn");
-
-    if (outputSizeEl) {
-      outputSizeEl.value = "1200";
-      outputSizeEl.disabled = true;
-    }
 
     let pdfData = null; // Uint8Array estable
     let shareFile = null;
@@ -139,7 +119,7 @@
 
       const pageNumber = Math.max(1, Number(pageNumberEl.value || 1));
       const outputSide = 1200;
-      const renderScale = Number(renderScaleEl.value);
+      const renderScale = 2.5;
 
       // <- clave: copiamos para evitar detached buffer
       const dataCopy = new Uint8Array(pdfData);
