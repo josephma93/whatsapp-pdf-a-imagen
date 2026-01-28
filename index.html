@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF a imagen para grupo de WhatsApp</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 24px; max-width: 1100px; }
+    h1 { margin: 0 0 12px; font-size: 22px; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0 18px; }
+    label { display: grid; gap: 6px; font-size: 14px; }
+    input[type="number"], select {
+      width: 160px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px;
+    }
+    input[type="file"] { font-size: 14px; }
+    button {
+      padding: 10px 14px; border: 1px solid #ccc; border-radius: 12px; background: #fff; cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .canvases { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .panel { border: 1px solid #e5e5e5; border-radius: 14px; padding: 14px; }
+    .panel h2 { margin: 0 0 10px; font-size: 16px; }
+    canvas { width: 100%; height: auto; background: #fafafa; border-radius: 12px; }
+    .meta { font-size: 13px; color: #444; margin-top: 10px; line-height: 1.35; }
+    a.download { display: inline-block; margin-top: 10px; font-size: 14px; }
+    .hint { font-size: 13px; color: #444; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>PDF a imagen para grupo de WhatsApp</h1>
+
+  <div class="row">
+    <label>
+      PDF
+      <input id="pdfFile" type="file" accept="application/pdf" />
+    </label>
+
+    <label>
+      Página
+      <input id="pageNumber" type="number" min="1" value="1" />
+    </label>
+
+    <label>
+      Tamaño final cuadrado
+      <select id="outputSize">
+        <option value="1200" selected>1200 × 1200</option>
+        <option value="1080">1080 × 1080</option>
+        <option value="1024">1024 × 1024</option>
+        <option value="900">900 × 900</option>
+      </select>
+    </label>
+
+    <label>
+      Resolución de render (calidad)
+      <select id="renderQuality">
+        <option value="1.5">Media</option>
+        <option value="2.0" selected>Alta</option>
+        <option value="2.5">Muy alta</option>
+      </select>
+    </label>
+
+    <button id="generateBtn" disabled>Generar PNG</button>
+  </div>
+
+  <div class="canvases">
+    <div class="panel">
+      <h2>Vista renderizada del PDF</h2>
+      <canvas id="pdfCanvas"></canvas>
+      <div class="meta" id="pdfMeta"></div>
+      <div class="hint">Esta vista es solo para referencia. La imagen final es la de la derecha.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Imagen final para grupo (lista)</h2>
+      <canvas id="outCanvas"></canvas>
+      <div class="meta" id="outMeta"></div>
+      <a id="downloadLink" class="download" href="#" download="whatsapp_grupo.png" style="display:none;">Descargar PNG</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
+  <script>
+    const pdfFile = document.getElementById("pdfFile");
+    const pageNumberEl = document.getElementById("pageNumber");
+    const outputSizeEl = document.getElementById("outputSize");
+    const renderQualityEl = document.getElementById("renderQuality");
+    const generateBtn = document.getElementById("generateBtn");
+
+    const pdfCanvas = document.getElementById("pdfCanvas");
+    const outCanvas = document.getElementById("outCanvas");
+
+    const pdfMeta = document.getElementById("pdfMeta");
+    const outMeta = document.getElementById("outMeta");
+    const downloadLink = document.getElementById("downloadLink");
+
+    let pdfBytes = null;
+
+    const pdfjsLib = window["pdfjs-dist/build/pdf"];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
+
+    pdfFile.addEventListener("change", async () => {
+      const file = pdfFile.files?.[0];
+      downloadLink.style.display = "none";
+      pdfMeta.textContent = "";
+      outMeta.textContent = "";
+      if (!file) {
+        pdfBytes = null;
+        generateBtn.disabled = true;
+        return;
+      }
+      pdfBytes = await file.arrayBuffer();
+      generateBtn.disabled = false;
+    });
+
+    generateBtn.addEventListener("click", async () => {
+      if (!pdfBytes) return;
+
+      downloadLink.style.display = "none";
+      pdfMeta.textContent = "Cargando…";
+      outMeta.textContent = "";
+
+      const pageNumber = Math.max(1, Number(pageNumberEl.value || 1));
+      const outputSide = Number(outputSizeEl.value);
+      const quality = Number(renderQualityEl.value);
+
+      const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      const page = await pdfDoc.getPage(pageNumber);
+
+      const viewport = page.getViewport({ scale: quality });
+      const ctx = pdfCanvas.getContext("2d", { alpha: false });
+
+      pdfCanvas.width = Math.floor(viewport.width);
+      pdfCanvas.height = Math.floor(viewport.height);
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const srcW = pdfCanvas.width;
+      const srcH = pdfCanvas.height;
+
+      pdfMeta.textContent = `PDF render: ${srcW}×${srcH}px | página: ${pageNumber} | escala render: ${quality}`;
+
+      const side = Math.min(srcW, srcH);
+
+      const scaleToFitSquare = side / srcW;
+      const fitW = Math.round(srcW * scaleToFitSquare);
+      const fitH = Math.round(srcH * scaleToFitSquare);
+
+      const outCtx = outCanvas.getContext("2d", { alpha: false });
+      outCanvas.width = outputSide;
+      outCanvas.height = outputSide;
+
+      outCtx.fillStyle = "#ffffff";
+      outCtx.fillRect(0, 0, outputSide, outputSide);
+
+      const scaleFinal = outputSide / side;
+      const drawW = Math.round(fitW * scaleFinal);
+      const drawH = Math.round(fitH * scaleFinal);
+
+      const dx = Math.round((outputSide - drawW) / 2);
+      const dy = Math.round((outputSide - drawH) / 2);
+
+      outCtx.imageSmoothingEnabled = true;
+      outCtx.imageSmoothingQuality = "high";
+      outCtx.drawImage(pdfCanvas, 0, 0, srcW, srcH, dx, dy, drawW, drawH);
+
+      const shownFraction = (side / srcW);
+      outMeta.textContent =
+        `Salida: ${outputSide}×${outputSide}px | modelo WhatsApp: cuadrado lado=${side}px (min(w,h)) | escala PDF→cuadrado: ${(shownFraction * 100).toFixed(1)}% del ancho`;
+
+      const pngUrl = outCanvas.toDataURL("image/png");
+      downloadLink.href = pngUrl;
+      downloadLink.style.display = "inline-block";
+    });
+  </script>
+</body>
+</html>
