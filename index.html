@@ -73,7 +73,10 @@
       <h2>Imagen final para grupo</h2>
       <canvas id="outCanvas"></canvas>
       <div class="meta" id="outMeta"></div>
-      <a id="downloadLink" class="download" href="#" download="whatsapp_grupo.png" style="display:none;">Descargar PNG</a>
+      <div class="row">
+        <a id="downloadLink" class="download" href="#" download="whatsapp_grupo.png" style="display:none;">Descargar PNG</a>
+        <button id="shareBtn" type="button" style="display:none;">Compartir</button>
+      </div>
     </div>
   </div>
 
@@ -95,6 +98,7 @@
     const pdfMeta = document.getElementById("pdfMeta");
     const outMeta = document.getElementById("outMeta");
     const downloadLink = document.getElementById("downloadLink");
+    const shareBtn = document.getElementById("shareBtn");
 
     if (outputSizeEl) {
       outputSizeEl.value = "1200";
@@ -102,10 +106,17 @@
     }
 
     let pdfData = null; // Uint8Array estable
+    let shareFile = null;
+
+    if (!navigator.share) {
+      shareBtn.style.display = "none";
+    }
 
     pdfFile.addEventListener("change", async () => {
       const file = pdfFile.files?.[0];
       downloadLink.style.display = "none";
+      shareBtn.style.display = "none";
+      shareFile = null;
       pdfMeta.textContent = "";
       outMeta.textContent = "";
       if (!file) {
@@ -184,8 +195,31 @@
       downloadLink.href = pngUrl;
       downloadLink.style.display = "inline-block";
 
+      const pngBlob = await new Promise((resolve) =>
+        outCanvas.toBlob(resolve, "image/png")
+      );
+      if (pngBlob) {
+        shareFile = new File([pngBlob], "whatsapp_grupo.png", { type: "image/png" });
+        if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [shareFile] }))) {
+          shareBtn.style.display = "inline-block";
+        }
+      }
+
       // opcional: liberar recursos
       await pdfDoc.destroy();
+    });
+
+    shareBtn.addEventListener("click", async () => {
+      if (!shareFile || !navigator.share) return;
+      try {
+        await navigator.share({
+          title: "WhatsApp grupo",
+          text: "Imagen generada desde PDF",
+          files: [shareFile],
+        });
+      } catch (err) {
+        // usuario canceló o la app no permite compartir
+      }
     });
   </script>
 </body>
