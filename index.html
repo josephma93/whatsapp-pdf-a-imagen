@@ -96,7 +96,7 @@
     const outMeta = document.getElementById("outMeta");
     const downloadLink = document.getElementById("downloadLink");
 
-    let pdfBytes = null;
+    let pdfData = null; // Uint8Array estable
 
     pdfFile.addEventListener("change", async () => {
       const file = pdfFile.files?.[0];
@@ -104,16 +104,18 @@
       pdfMeta.textContent = "";
       outMeta.textContent = "";
       if (!file) {
-        pdfBytes = null;
+        pdfData = null;
         generateBtn.disabled = true;
         return;
       }
-      pdfBytes = await file.arrayBuffer();
+
+      const buf = await file.arrayBuffer();
+      pdfData = new Uint8Array(buf); // <- clave: guardamos Uint8Array
       generateBtn.disabled = false;
     });
 
     generateBtn.addEventListener("click", async () => {
-      if (!pdfBytes) return;
+      if (!pdfData) return;
 
       downloadLink.style.display = "none";
       pdfMeta.textContent = "Cargando…";
@@ -123,7 +125,10 @@
       const outputSide = Number(outputSizeEl.value);
       const renderScale = Number(renderScaleEl.value);
 
-      const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      // <- clave: copiamos para evitar detached buffer
+      const dataCopy = new Uint8Array(pdfData);
+
+      const pdfDoc = await pdfjsLib.getDocument({ data: dataCopy }).promise;
       const page = await pdfDoc.getPage(pageNumber);
 
       const viewport = page.getViewport({ scale: renderScale });
@@ -173,6 +178,9 @@
       const pngUrl = outCanvas.toDataURL("image/png");
       downloadLink.href = pngUrl;
       downloadLink.style.display = "inline-block";
+
+      // opcional: liberar recursos
+      await pdfDoc.destroy();
     });
   </script>
 </body>
