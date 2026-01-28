@@ -6,7 +6,7 @@
   <title>PDF a imagen para grupo de WhatsApp</title>
   <style>
     :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body { margin: 24px; max-width: 1100px; }
+    body { margin: 24px; max-width: 900px; }
     h1 { margin: 0 0 12px; font-size: 22px; }
     .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0 18px; }
     label { display: grid; gap: 6px; font-size: 14px; }
@@ -19,12 +19,23 @@
       font-size: 14px;
     }
     button:disabled { opacity: .5; cursor: not-allowed; }
-    .canvases { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+    .canvases { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
     .panel { border: 1px solid #e5e5e5; border-radius: 14px; padding: 14px; }
     .panel h2 { margin: 0 0 10px; font-size: 16px; }
     canvas { width: 100%; height: auto; background: #fafafa; border-radius: 12px; }
     .meta { font-size: 13px; color: #444; margin-top: 10px; line-height: 1.35; }
     a.download { display: inline-block; margin-top: 10px; font-size: 14px; }
+    .hidden { display: none; }
+    @media (max-width: 720px) {
+      body { margin: 16px; }
+      .row { flex-direction: column; align-items: stretch; }
+      label { width: 100%; }
+      input[type="number"], select, input[type="file"], button, a.download {
+        width: 100%;
+      }
+      .panel { padding: 12px; }
+      h1 { font-size: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -46,12 +57,6 @@
 
   <div class="canvases">
     <div class="panel">
-      <h2>Render del PDF (referencia)</h2>
-      <canvas id="pdfCanvas"></canvas>
-      <div class="meta" id="pdfMeta"></div>
-    </div>
-
-    <div class="panel">
       <h2>Imagen final para grupo</h2>
       <canvas id="outCanvas"></canvas>
       <div class="meta" id="outMeta"></div>
@@ -61,6 +66,9 @@
       </div>
     </div>
   </div>
+
+  <canvas id="pdfCanvas" class="hidden" aria-hidden="true"></canvas>
+  <div class="meta hidden" id="pdfMeta" aria-hidden="true"></div>
 
   <script type="module">
     import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.mjs";
