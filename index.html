@@ -96,6 +96,11 @@
     const outMeta = document.getElementById("outMeta");
     const downloadLink = document.getElementById("downloadLink");
 
+    if (outputSizeEl) {
+      outputSizeEl.value = "1200";
+      outputSizeEl.disabled = true;
+    }
+
     let pdfData = null; // Uint8Array estable
 
     pdfFile.addEventListener("change", async () => {
@@ -122,7 +127,7 @@
       outMeta.textContent = "";
 
       const pageNumber = Math.max(1, Number(pageNumberEl.value || 1));
-      const outputSide = Number(outputSizeEl.value);
+      const outputSide = 1200;
       const renderScale = Number(renderScaleEl.value);
 
       // <- clave: copiamos para evitar detached buffer
