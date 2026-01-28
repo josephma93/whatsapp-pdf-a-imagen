@@ -11,7 +11,7 @@
     .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 12px 0 18px; }
     label { display: grid; gap: 6px; font-size: 14px; }
     input[type="number"], select {
-      width: 160px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px;
+      width: 170px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px;
     }
     input[type="file"] { font-size: 14px; }
     button {
@@ -25,7 +25,6 @@
     canvas { width: 100%; height: auto; background: #fafafa; border-radius: 12px; }
     .meta { font-size: 13px; color: #444; margin-top: 10px; line-height: 1.35; }
     a.download { display: inline-block; margin-top: 10px; font-size: 14px; }
-    .hint { font-size: 13px; color: #444; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -47,14 +46,13 @@
       <select id="outputSize">
         <option value="1200" selected>1200 × 1200</option>
         <option value="1080">1080 × 1080</option>
-        <option value="1024">1024 × 1024</option>
         <option value="900">900 × 900</option>
       </select>
     </label>
 
     <label>
-      Resolución de render (calidad)
-      <select id="renderQuality">
+      Calidad de render
+      <select id="renderScale">
         <option value="1.5">Media</option>
         <option value="2.0" selected>Alta</option>
         <option value="2.5">Muy alta</option>
@@ -66,26 +64,29 @@
 
   <div class="canvases">
     <div class="panel">
-      <h2>Vista renderizada del PDF</h2>
+      <h2>Render del PDF (referencia)</h2>
       <canvas id="pdfCanvas"></canvas>
       <div class="meta" id="pdfMeta"></div>
-      <div class="hint">Esta vista es solo para referencia. La imagen final es la de la derecha.</div>
     </div>
 
     <div class="panel">
-      <h2>Imagen final para grupo (lista)</h2>
+      <h2>Imagen final para grupo</h2>
       <canvas id="outCanvas"></canvas>
       <div class="meta" id="outMeta"></div>
       <a id="downloadLink" class="download" href="#" download="whatsapp_grupo.png" style="display:none;">Descargar PNG</a>
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.js"></script>
-  <script>
+  <script type="module">
+    import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.mjs";
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.mjs";
+
     const pdfFile = document.getElementById("pdfFile");
     const pageNumberEl = document.getElementById("pageNumber");
     const outputSizeEl = document.getElementById("outputSize");
-    const renderQualityEl = document.getElementById("renderQuality");
+    const renderScaleEl = document.getElementById("renderScale");
     const generateBtn = document.getElementById("generateBtn");
 
     const pdfCanvas = document.getElementById("pdfCanvas");
@@ -96,9 +97,6 @@
     const downloadLink = document.getElementById("downloadLink");
 
     let pdfBytes = null;
-
-    const pdfjsLib = window["pdfjs-dist/build/pdf"];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.js";
 
     pdfFile.addEventListener("change", async () => {
       const file = pdfFile.files?.[0];
@@ -123,12 +121,12 @@
 
       const pageNumber = Math.max(1, Number(pageNumberEl.value || 1));
       const outputSide = Number(outputSizeEl.value);
-      const quality = Number(renderQualityEl.value);
+      const renderScale = Number(renderScaleEl.value);
 
       const pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
       const page = await pdfDoc.getPage(pageNumber);
 
-      const viewport = page.getViewport({ scale: quality });
+      const viewport = page.getViewport({ scale: renderScale });
       const ctx = pdfCanvas.getContext("2d", { alpha: false });
 
       pdfCanvas.width = Math.floor(viewport.width);
@@ -139,13 +137,17 @@
       const srcW = pdfCanvas.width;
       const srcH = pdfCanvas.height;
 
-      pdfMeta.textContent = `PDF render: ${srcW}×${srcH}px | página: ${pageNumber} | escala render: ${quality}`;
+      pdfMeta.textContent = `PDF render: ${srcW}×${srcH}px | página: ${pageNumber} | escala: ${renderScale}`;
 
+      // Modelo WhatsApp: recorte cuadrado lado = min(w,h)
       const side = Math.min(srcW, srcH);
 
-      const scaleToFitSquare = side / srcW;
-      const fitW = Math.round(srcW * scaleToFitSquare);
-      const fitH = Math.round(srcH * scaleToFitSquare);
+      // Para que el PDF completo quepa dentro del cuadrado:
+      // Escalamos uniformemente hasta que el ancho del PDF sea "side"
+      // y lo centramos en un lienzo cuadrado, generando padding horizontal.
+      const scaleToSquare = side / srcW;
+      const fitW = Math.round(srcW * scaleToSquare);
+      const fitH = Math.round(srcH * scaleToSquare);
 
       const outCtx = outCanvas.getContext("2d", { alpha: false });
       outCanvas.width = outputSide;
@@ -165,9 +167,8 @@
       outCtx.imageSmoothingQuality = "high";
       outCtx.drawImage(pdfCanvas, 0, 0, srcW, srcH, dx, dy, drawW, drawH);
 
-      const shownFraction = (side / srcW);
       outMeta.textContent =
-        `Salida: ${outputSide}×${outputSide}px | modelo WhatsApp: cuadrado lado=${side}px (min(w,h)) | escala PDF→cuadrado: ${(shownFraction * 100).toFixed(1)}% del ancho`;
+        `Salida: ${outputSide}×${outputSide}px | lado cuadrado WhatsApp=${side}px | PDF→cuadrado: ${(side/srcW*100).toFixed(1)}% del ancho`;
 
       const pngUrl = outCanvas.toDataURL("image/png");
       downloadLink.href = pngUrl;
